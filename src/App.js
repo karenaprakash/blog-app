@@ -17,7 +17,7 @@ class App extends Component {
   state = {
     showBackdrop: false,
     showMobileNav: false,
-    isAuth: true,
+    isAuth: false,
     token: null,
     userId: null,
     authLoading: false,
@@ -59,7 +59,16 @@ class App extends Component {
   loginHandler = (event, authData) => {
     event.preventDefault();
     this.setState({ authLoading: true });
-    fetch('URL')
+    fetch('http://localhost:8080/user/login',{
+      method : 'POST',
+      headers : {
+        'Content-Type' : 'application/json'
+      },
+      body : JSON.stringify({
+        email : authData.email,
+        password : authData.password
+      })
+    })
       .then(res => {
         if (res.status === 422) {
           throw new Error('Validation failed.');
@@ -99,33 +108,49 @@ class App extends Component {
 
   signupHandler = (event, authData) => {
     event.preventDefault();
+    const data = JSON.stringify({
+      email : authData.signupForm.email.value,
+      password : authData.signupForm.password.value,
+      name : authData.signupForm.name.value 
+    })
+    console.log(data)
     this.setState({ authLoading: true });
-    fetch('URL')
-      .then(res => {
-        if (res.status === 422) {
-          throw new Error(
-            "Validation failed. Make sure the email address isn't used yet!"
-          );
-        }
-        if (res.status !== 200 && res.status !== 201) {
-          console.log('Error!');
-          throw new Error('Creating a user failed!');
-        }
-        return res.json();
+    fetch('http://localhost:8080/user/signup',{
+      method : 'POST',
+      headers : {
+        'Content-Type' : 'application/json'
+      },
+      body : JSON.stringify({
+        email : authData.signupForm.email.value,
+        password : authData.signupForm.password.value,
+        name : authData.signupForm.name.value 
       })
-      .then(resData => {
-        console.log(resData);
-        this.setState({ isAuth: false, authLoading: false });
-        this.props.history.replace('/');
-      })
-      .catch(err => {
-        console.log(err);
-        this.setState({
-          isAuth: false,
-          authLoading: false,
-          error: err
-        });
+    })
+    .then(res => {
+      if (res.status === 422) {
+        throw new Error(
+          "Validation failed. Make sure the email address isn't used yet!"
+        );
+      }
+      if (res.status !== 200 && res.status !== 201) {
+        console.log('Error!');
+        throw new Error('Creating a user failed!');
+      }
+      return res.json();
+    })
+    .then(resData => {
+      console.log(resData);
+      this.setState({ isAuth: false, authLoading: false });
+      this.props.history.replace('/');
+    })
+    .catch(err => {
+      console.log(err);
+      this.setState({
+        isAuth: false,
+        authLoading: false,
+        error: err
       });
+    });
   };
 
   setAutoLogout = milliseconds => {

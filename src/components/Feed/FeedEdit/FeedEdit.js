@@ -1,5 +1,5 @@
 import React, { Component, Fragment } from 'react';
-
+import LinearProgress from '@material-ui/core/LinearProgress';
 import Backdrop from '../../Backdrop/Backdrop';
 import Modal from '../../Modal/Modal';
 import Input from '../../Form/Input/Input';
@@ -33,7 +33,7 @@ class FeedEdit extends Component {
   state = {
     postForm: POST_FORM,
     formIsValid: false,
-    imagePreview: null
+    imagePreview: null,
   };
 
   componentDidUpdate(prevProps, prevState) {
@@ -61,6 +61,7 @@ class FeedEdit extends Component {
       };
       this.setState({ postForm: postForm, formIsValid: true });
     }
+
   }
 
   postInputChangeHandler = (input, value, files) => {
@@ -133,6 +134,14 @@ class FeedEdit extends Component {
     });
   };
 
+  componentWillReceiveProps(newProps){
+    if(newProps){
+     // if(this.props.uploading === 100 && this.props.loading === false ){
+       
+     // }
+    }
+  }
+
   render() {
     return this.props.editing ? (
       <Fragment>
@@ -144,6 +153,9 @@ class FeedEdit extends Component {
           onAcceptModal={this.acceptPostChangeHandler}
           isLoading={this.props.loading}
         >
+           {this.props.loading && (
+              <LinearProgress variant="determinate" value={this.props.uploading} />
+            )}
           <form>
             <Input
               id="title"

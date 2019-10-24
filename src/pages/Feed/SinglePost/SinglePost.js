@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 
+
 import Image from '../../../components/Image/Image';
 import './SinglePost.css';
 
@@ -9,12 +10,16 @@ class SinglePost extends Component {
     author: '',
     date: '',
     image: '',
-    content: ''
+    content: '',
   };
   
   componentDidMount() {
     const postId = this.props.match.params.postId;
-    fetch(`http://localhost:8080/feed/posts/${postId}`)
+    fetch(`https://lit-cliffs-27689.herokuapp.com/feed/posts/${postId}`,{
+      headers :{
+        Authorization : 'Bearer '+ this.props.token
+      }
+    })
       .then(res => {
         if (res.status !== 200) {
           throw new Error('Failed to fetch status');
@@ -25,7 +30,7 @@ class SinglePost extends Component {
         this.setState({
           title: resData.post.title,
           author: resData.post.creator.name,
-          image : `http://localhost:8080${resData.post.imageUrl}`,
+          image : `${resData.post.imageUrl}`,
           date: new Date(resData.post.createdAt).toLocaleDateString('en-US'),
           content: resData.post.content
         });

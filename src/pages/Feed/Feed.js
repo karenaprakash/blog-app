@@ -20,11 +20,16 @@ class Feed extends Component {
     status: '',
     postPage: 1,
     postsLoading: true,
-    editLoading: false
+    editLoading: false,
+    uploading : 0
   };
 
   componentDidMount() {
-    fetch('URL')
+    fetch('URL',{
+      headers : {
+        Authorization : 'Bearer '+ this.props.token
+      }
+    })
       .then(res => {
         if (res.status !== 200) {
           throw new Error('Failed to fetch user status.');
@@ -35,7 +40,7 @@ class Feed extends Component {
         this.setState({ status: resData.status });
       })
       .catch(this.catchError);
-
+   console.log('did mount')
     this.loadPosts();
   }
 
@@ -52,7 +57,11 @@ class Feed extends Component {
       page--;
       this.setState({ postPage: page });
     }
-    fetch('http://localhost:8080/feed/posts')
+    fetch(`https://lit-cliffs-27689.herokuapp.com/feed/posts?page=${page}`,{
+      headers : {
+        Authorization : 'Bearer '+ this.props.token
+      }
+    })
       .then(res => {
         if (res.status !== 200) {
           throw new Error('Failed to fetch posts.');
@@ -71,7 +80,11 @@ class Feed extends Component {
 
   statusUpdateHandler = event => {
     event.preventDefault();
-    fetch('URL')
+    fetch('URL',{
+      headers:{
+        Authorization : 'Bearer '+ this.props.token
+      }
+    })
       .then(res => {
         if (res.status !== 200 && res.status !== 201) {
           throw new Error("Can't update status!");
@@ -109,91 +122,219 @@ class Feed extends Component {
       editLoading: true
     });
     // Set up data (with image!)
-    let url = 'http://localhost:8080/feed/create-post';
+    let url = 'https://lit-cliffs-27689.herokuapp.com/feed/create-post';
     let method = 'POST';
     if (this.state.editPost) {
-      url = 'URL';
+      url = `https://lit-cliffs-27689.herokuapp.com/feed/update-post/${this.state.editPost._id}`;
+      method = "PUT";
     }
-    console.log(postData)
-    const formData = new FormData();
-    formData.append('title',postData.title);
-    formData.append('content',postData.content);
-    formData.append('image',postData.image);
-    console.log(postData.image)
-    console.log(typeof(formData.get('image')))
-    
-    fetch(url,{
-      method : method,
-      body : formData,
-    })
-      .then(res => {
-        if (res.status !== 200 && res.status !== 201) {
-          throw new Error('Creating or editing a post failed!');
-        }
-        return res.json();
-      })
-      .then(resData => {
-        console.log(resData);
-        const post = {
-          _id: resData.post._id,
-          title: resData.post.title,
-          content: resData.post.content,
-          creator: resData.post.creator,
-          createdAt: resData.post.createdAt
-        };
-        this.setState(prevState => {
-          let updatedPosts = [...prevState.posts];
-          if (prevState.editPost) {
-            const postIndex = prevState.posts.findIndex(
-              p => p._id === prevState.editPost._id
-            );
-            updatedPosts[postIndex] = post;
-          } else if (prevState.posts.length < 2) {
-            updatedPosts = prevState.posts.concat(post);
+    if(!this.state.editPost){
+      let currentImageName = "firebase-image-"+Date.now();
+      let uploadImage = storage.ref(`posts/images/${currentImageName}`).put(postData.image);
+      uploadImage.on('state_changed',
+          (snapshot) => { 
+              var progress = snapshot.bytesTransferred / snapshot.totalBytes * 100;
+              this.setState({
+                uploading : progress
+              })           
+              console.log(progress)
+           },
+          (err) => {
+            this.catchError(err);
+          },
+          () => { 
+              storage.ref('posts/images').child(currentImageName).getDownloadURL()
+              .then(imageUrl => {                
+                 postData.imageUrl = imageUrl
+                 fetch(url,{
+                  method : method,
+                  body : JSON.stringify(postData),
+                  headers : {
+                    'Content-Type' : 'application/json',
+                     Authorization : 'Bearer '+ this.props.token
+                  }
+                })
+                  .then(res => {
+                    if (res.status !== 200 && res.status !== 201) {
+                      throw new Error('Creating or editing a post failed!');
+                    }
+                    return res.json();
+                  })
+                  .then(resData => {
+                    console.log(resData);
+                    const post = {
+                      _id: resData.post._id,
+                      title: resData.post.title,
+                      content: resData.post.content,
+                      creator: resData.post.creator,
+                      createdAt: resData.post.createdAt
+                    };
+                    this.setState({
+                        isEditing: false,
+                        editPost: null,
+                        editLoading: false
+                    });
+                    this.loadPosts();
+                  })
+                  .catch(err => {
+                    console.log(err);
+                    this.setState({
+                      isEditing: false,
+                      editPost: null,
+                      editLoading: false,
+                      error: err
+                    });
+                  });
+              })
+              .catch(this.catchError);
           }
-          return {
-            posts: updatedPosts,
+      )
+    }else if(this.state.editPost && postData.image){
+      let currentImageName = "firebase-image-"+Date.now();
+      let uploadImage = storage.ref(`posts/images/${currentImageName}`).put(postData.image);
+      uploadImage.on('state_changed',
+          (snapshot) => { 
+              var progress = snapshot.bytesTransferred / snapshot.totalBytes * 100;
+              this.setState({
+                uploading : progress
+              })           
+              console.log(progress)
+           },
+          (err) => {
+            this.catchError(err);
+          },
+          () => { 
+              storage.ref('posts/images').child(currentImageName).getDownloadURL()
+              .then(imageUrl => {                
+                 postData.imageUrl = imageUrl
+                 fetch(url,{
+                  method : method,
+                  body : JSON.stringify(postData),
+                  headers : {
+                    'Content-Type' : 'application/json',
+                    Authorization : 'Bearer '+ this.props.token
+                  }
+                })
+                  .then(res => {
+                    if (res.status !== 200 && res.status !== 201) {
+                      throw new Error('Creating or editing a post failed!');
+                    }
+                    return res.json();
+                  })
+                  .then(resData => {
+                    console.log(resData);
+                   
+                    let deleteImage = storage.refFromURL(resData.post.imageUrl).delete();
+                    return deleteImage;
+                  
+                  
+                  })
+                  .then(result=>{
+                    console.log('image deleted from firebase successfully.')
+                    console.log(result)
+                    this.setState({                  
+                      isEditing: false,
+                      editPost: null,
+                      editLoading: false
+                    });
+                    this.loadPosts();
+
+                  })
+                  .catch(err => {
+                    console.log(err);
+                    this.setState({
+                      isEditing: false,
+                      editPost: null,
+                      editLoading: false,
+                      error: err
+                    });
+                  });
+              })
+              .catch(this.catchError);
+          }
+      )
+    }else if(this.state.editPost && !postData.image){
+      console.log(url)
+      fetch(url,{
+        method : method,
+        body : JSON.stringify(postData),
+        headers : {
+          'Content-Type' : 'application/json',
+          Authorization : 'Bearer '+ this.props.token
+        }
+      })
+        .then(res => {
+          if (res.status !== 200 && res.status !== 201) {
+            throw new Error('Creating or editing a post failed!');
+          }
+          return res.json();
+        })
+        .then(resData => {
+          console.log(resData);
+          const post = {
+            _id: resData.post._id,
+            title: resData.post.title,
+            content: resData.post.content,
+            creator: resData.post.creator,
+            createdAt: resData.post.createdAt
+          };
+          this.setState({
+              isEditing: false,
+              editPost: null,
+              editLoading: false
+          });
+          console.log('load posts')
+          this.loadPosts();
+        })
+        .catch(err => {
+          console.log(err);
+          this.setState({
             isEditing: false,
             editPost: null,
-            editLoading: false
-          };
+            editLoading: false,
+            error: err
+          });
+          this.catchError(err)
         });
-      })
-      .catch(err => {
-        console.log(err);
-        this.setState({
-          isEditing: false,
-          editPost: null,
-          editLoading: false,
-          error: err
-        });
-      });
+    }
+
+  
+     
   };
 
   statusInputChangeHandler = (input, value) => {
     this.setState({ status: value });
   };
 
-  deletePostHandler = postId => {
+  deletePostHandler = (postId,imageUrl) => {
     this.setState({ postsLoading: true });
-    fetch('URL')
-      .then(res => {
-        if (res.status !== 200 && res.status !== 201) {
-          throw new Error('Deleting a post failed!');
-        }
-        return res.json();
-      })
-      .then(resData => {
-        console.log(resData);
-        this.setState(prevState => {
-          const updatedPosts = prevState.posts.filter(p => p._id !== postId);
-          return { posts: updatedPosts, postsLoading: false };
-        });
-      })
-      .catch(err => {
-        console.log(err);
-        this.setState({ postsLoading: false });
-      });
+    console.log(postId)
+    let deleteImage = storage.refFromURL(imageUrl).delete();
+    deleteImage.then(result=>{
+          fetch(`https://lit-cliffs-27689.herokuapp.com/feed/delete-post/${postId}`,{
+            method : 'DELETE',
+            Authorization : 'Bearer '+ this.props.token
+          })
+          .then(res => {
+            if (res.status !== 200 && res.status !== 201) {
+              throw new Error('Deleting a post failed!');
+            }
+            return res.json();
+          })
+          .then(resData => {
+            console.log(resData);
+            this.setState(prevState => {
+              const updatedPosts = prevState.posts.filter(p => p._id !== postId);
+              return { posts: updatedPosts, postsLoading: false };
+            });
+          })
+          .catch(err => {
+            console.log(err);
+            this.setState({ postsLoading: false });
+            this.catchError(err)
+          });
+    }).catch(this.catchError)  
+    
   };
 
   errorHandler = () => {
@@ -214,6 +355,7 @@ class Feed extends Component {
           loading={this.state.editLoading}
           onCancelEdit={this.cancelEditHandler}
           onFinishEdit={this.finishEditHandler}
+          uploading={this.state.uploading}
         />
         <section className="feed__status">
           <form onSubmit={this.statusUpdateHandler}>
@@ -260,7 +402,7 @@ class Feed extends Component {
                   image={post.imageUrl}
                   content={post.content}
                   onStartEdit={this.startEditPostHandler.bind(this, post._id)}
-                  onDelete={this.deletePostHandler.bind(this, post._id)}
+                  onDelete={() => this.deletePostHandler(post._id,post.imageUrl)}
                 />
               ))}
             </Paginator>
